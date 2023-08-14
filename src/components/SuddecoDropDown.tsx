@@ -7,13 +7,25 @@ import Select, { SelectChangeEvent } from '@mui/material/Select';
 
 export default function SuddecoDropDown(props) {
     const [material, setMaterial] = React.useState('');
+    const [used, setUsed] = React.useState(false);
 
     const handleChange = (event: SelectChangeEvent) => {
         setMaterial(event.target.value as string);
-        if (props.updateRowCount){
+
+        // first time selection adds a row again at bottom
+        if (!used && props.updateRowCount){
             props.updateRowCount();
+            setUsed(true);
         }
-    };
+        if (props.setSelection){
+            props.setSelection(props.type, material, props.rowIndex);
+        }
+    }
+
+    if (props.selectedValue){
+        console.log("selected value passed: "+props.selectedValue);
+        setMaterial(props.selectedValue);
+    }
 
     return (
         <Box sx={{ minWidth: 120 }}>

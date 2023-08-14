@@ -48,6 +48,7 @@ export default function CustomizedTables() {
     const [materials, setMaterials] = React.useState(['steel beam', 'glass', 'concrete']);
     const [rowCount, setRowCount] = React.useState(1);
     const [lineItems, setLineItems ] = React.useState<LineItem[]>([]);
+    const [sampleTexts, setSampleTexts ] = React.useState([]);
     React.useEffect(() => {
         fetch('https://jsonplaceholder.typicode.com/posts?_limit=10')
             .then(response => response.json())
@@ -65,10 +66,16 @@ export default function CustomizedTables() {
     const rows = [];
     const updateRowCount = () => {
         setRowCount(rowCount + 1);
+        let lineItem = {} as LineItem;
+        console.log("addding one line item");
+        setSampleTexts([...sampleTexts, "haha"])
+        console.log("after");
+        console.log(sampleTexts.length);
     };
 
     const setSelection = (type, value, rowIndex) => {
         console.log("inside selection");
+        console.log(lineItems.length);
         const lineItem = lineItems[rowIndex];
         if (type == 'material'){
             lineItem.material = value;
@@ -76,7 +83,6 @@ export default function CustomizedTables() {
         if (type == 'specification'){
             lineItem.specification = value;
         }
-        setLineItems([...lineItems, lineItem])
         console.log(lineItems);
     }
 
@@ -91,20 +97,22 @@ export default function CustomizedTables() {
             rows.push(
                 <StyledTableRow vertical-align='center'>
                     <StyledTableCell>
-                        <SuddecoDropDown dropdowns={materials} label="Material" updateRowCount={updateRowCount} />
+                        <SuddecoDropDown dropdowns={materials} label="Material" updateRowCount={updateRowCount} type="material"
+                            setSelection={setSelection} rowIndex={i}/>
                     </StyledTableCell>
                     <StyledTableCell align="right"></StyledTableCell>
                     <StyledTableCell align="center"></StyledTableCell>
                     <StyledTableCell align="right"></StyledTableCell>
                 </StyledTableRow>
             )
-            let lineItem = {} as LineItem;
-            setLineItems([...lineItems, lineItem])
         } else {
+            console.log("inside other");
+            console.log(lineItems[i].material);
             rows.push(
                 <StyledTableRow vertical-align='center'>
                     <StyledTableCell>
-                        <SuddecoDropDown dropdowns={materials} label="Material"/>
+                        <SuddecoDropDown dropdowns={materials} label="Material" type="material" 
+                            setSelection={setSelection} selectedValue={lineItems[i].material} rowIndex={i}/>
                     </StyledTableCell>
                     <StyledTableCell align="right">Sample text</StyledTableCell>
                     <StyledTableCell align="center">
