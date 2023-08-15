@@ -9,32 +9,42 @@ export default function SuddecoDropDown(props) {
     const [material, setMaterial] = React.useState('');
     const [used, setUsed] = React.useState(false);
 
+    console.log("inside render of dropdown")
+    console.log(material)
+
     const handleChange = (event: SelectChangeEvent) => {
-        setMaterial(event.target.value as string);
+        const selection = event.target.value as string
+        setMaterial(selection);
+
+        if (props.setSelection){
+            props.setSelection(props.type, selection, props.rowIndex);
+        }
 
         // first time selection adds a row again at bottom
         if (!used && props.updateRowCount){
             props.updateRowCount();
             setUsed(true);
         }
-        if (props.setSelection){
-            props.setSelection(props.type, material, props.rowIndex);
-        }
     }
 
-    if (props.selectedValue){
-        console.log("selected value passed: "+props.selectedValue);
-        setMaterial(props.selectedValue);
+    const getSelection = () => {
+        if (material){
+            return material
+        }
+        if (props.selectedValue){
+            return props.selectedValue;
+        }
+        return material;
     }
 
     return (
-        <Box sx={{ minWidth: 120 }}>
-            <FormControl fullWidth size='small'>
+        <Box>
+            <FormControl style={{ width: '100%' }} size='small'>
                 <InputLabel id="demo-simple-select-label">{props.label}</InputLabel>
                 <Select
                     labelId="demo-simple-select-label"
                     id="demo-simple-select"
-                    value={material}
+                    value={getSelection()}
                     label={props.label}
                     onChange={handleChange}
                 >

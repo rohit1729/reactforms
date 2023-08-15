@@ -32,7 +32,7 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
     // hide last border
     '&:last-child td, &:last-child th': {
         border: 0,
-    },
+    }
 }));
 
 interface LineItem {
@@ -43,47 +43,97 @@ interface LineItem {
     price: number;
 }
 
+interface MaterialSelected {
+    materialId: number
+    materialName: string
+}
+
+interface MaterialOption {
+    materialId: number,
+    materialName: string
+}
+
+interface SpecificationOption {
+    specificationId: number,
+    specificationName: string
+}
+
 
 export default function CustomizedTables() {
     const [materials, setMaterials] = React.useState(['steel beam', 'glass', 'concrete']);
     const [rowCount, setRowCount] = React.useState(1);
     const [lineItems, setLineItems ] = React.useState<LineItem[]>([]);
-    const [sampleTexts, setSampleTexts ] = React.useState([]);
-    React.useEffect(() => {
-        fetch('https://jsonplaceholder.typicode.com/posts?_limit=10')
+    const [materialSelected, setMaterialSelected] = React.useState<MaterialSelected>({
+        materialId: 0,
+        materialName: ''
+      });
+    const specificationStore = React.useRef({})
+
+    const fetchMaterialData = () => {
+        try {
+            fetch('https://jsonplaceholder.typicode.com/posts?_limit=10')
             .then(response => response.json())
             .then((posts) => {
+                console.log("materials response");
                 let names = [];
                 posts.forEach(post => {
                     names.push(post['title']);
                 });
-                console.log("inside the return");
                 setMaterials(names);
             })
-            .catch(error => console.error(error));
-    }, [rowCount])
+            .catch(error => console.error(error))
+        } catch (error) {
+          console.error('Error fetching data:', error);
+        }
+    };
+
+    const fetchSpecificationData = (materialId: number) => {
+        try {
+            fetch('https://jsonplaceholder.typicode.com/posts?_limit=10')
+            .then(response => response.json())
+            .then((posts) => {
+                console.log("specifications response");
+                let names = [];
+                posts.forEach(post => {
+                    names.push(post['title']);
+                });
+            })
+            .catch(error => console.error(error))
+        } catch (error) {
+          console.error('Error fetching data:', error);
+        }
+    };
+
+    const memoizedMaterialData = React.useMemo(() => fetchMaterialData, []);
+    React.useEffect(() => {
+        memoizedMaterialData();
+        if (specificationStore)
+    }, [materialSelected])
 
     const rows = [];
+
     const updateRowCount = () => {
         setRowCount(rowCount + 1);
-        let lineItem = {} as LineItem;
-        console.log("addding one line item");
-        setSampleTexts([...sampleTexts, "haha"])
-        console.log("after");
-        console.log(sampleTexts.length);
     };
 
     const setSelection = (type, value, rowIndex) => {
-        console.log("inside selection");
-        console.log(lineItems.length);
-        const lineItem = lineItems[rowIndex];
-        if (type == 'material'){
-            lineItem.material = value;
+        if (lineItems[rowIndex]){
+            if (type == 'material'){
+                lineItems[rowIndex].material = value;
+            }
+            if (type == 'specification'){
+                lineItems[rowIndex].specification = value;
+            }
+        }else{
+            let lineItem = {} as LineItem;
+            if (type == 'material'){
+                lineItem.material = value;
+            }
+            if (type == 'specification'){
+                lineItem.specification = value;
+            }
+            setLineItems([...lineItems, lineItem])
         }
-        if (type == 'specification'){
-            lineItem.specification = value;
-        }
-        console.log(lineItems);
     }
 
     const removeRow = (rowIndex) => {
@@ -95,27 +145,27 @@ export default function CustomizedTables() {
     for (let i = 0; i < rowCount; ++i) {
         if (i == rowCount - 1) {
             rows.push(
-                <StyledTableRow vertical-align='center'>
-                    <StyledTableCell>
+                <StyledTableRow key={"none_"+i} vertical-align='center'>
+                    <StyledTableCell style={{width: "35%"}}>
                         <SuddecoDropDown dropdowns={materials} label="Material" updateRowCount={updateRowCount} type="material"
-                            setSelection={setSelection} rowIndex={i}/>
+                            setSelection={setSelection} rowIndex={i} selectedValue="None"/>
                     </StyledTableCell>
-                    <StyledTableCell align="right"></StyledTableCell>
-                    <StyledTableCell align="center"></StyledTableCell>
-                    <StyledTableCell align="right"></StyledTableCell>
+                    <StyledTableCell align="right" style={{width: "35%"}}></StyledTableCell>
+                    <StyledTableCell align="center" style={{width: "20%"}} ></StyledTableCell>
+                    <StyledTableCell align="right" style={{width: "10%"}}></StyledTableCell>
                 </StyledTableRow>
             )
         } else {
-            console.log("inside other");
+            console.log("inside other"+i);
             console.log(lineItems[i].material);
             rows.push(
-                <StyledTableRow vertical-align='center'>
+                <StyledTableRow key={i} vertical-align='center'>
                     <StyledTableCell>
-                        <SuddecoDropDown dropdowns={materials} label="Material" type="material" 
-                            setSelection={setSelection} selectedValue={lineItems[i].material} rowIndex={i}/>
+                        <SuddecoDropDown dropdowns={materials} label="Material" type="material" rowIndex={i} 
+                            setSelection={setSelection} selectedValue={lineItems[i].material}/>
                     </StyledTableCell>
-                    <StyledTableCell align="right">Sample text</StyledTableCell>
-                    <StyledTableCell align="center">
+                    <StyledTableCell align="right" style={{width: "35%"}}>Sample text</StyledTableCell>
+                    <StyledTableCell align="center" style={{width: "20%"}}>
                         <FormControl sx={{ m: 1 }}>
                             <InputLabel htmlFor="outlined-adornment-amount">Price</InputLabel>
                             <OutlinedInput
@@ -125,7 +175,7 @@ export default function CustomizedTables() {
                             />
                         </FormControl>
                     </StyledTableCell>
-                    <StyledTableCell align="right">
+                    <StyledTableCell align="right" style={{width: "10%"}}>
                         <IconButton aria-label="delete" size="large" color="error" onClick={() => removeRow(i)}>
                             <DeleteIcon/>
                         </IconButton>
@@ -136,7 +186,7 @@ export default function CustomizedTables() {
     }
     return (
         <TableContainer component={Paper}>
-            <Table sx={{ minWidth: 700 }} aria-label="customized table">
+            <Table sx={{ minWidth: 700 }} style={{tableLayout: 'fixed'}} aria-label="customized table">
                 <TableHead>
                     <TableRow>
                         <StyledTableCell>Material</StyledTableCell>
