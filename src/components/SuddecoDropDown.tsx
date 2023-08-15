@@ -5,12 +5,17 @@ import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 
+
+
 export default function SuddecoDropDown(props) {
     const [selection, setSelection] = React.useState(0);
     const [used, setUsed] = React.useState(false);
     const selectionName = React.useRef('')
-    console.log("the dropdowns for: "+props.type)
-    console.log(props.dropdowns)
+
+    React.useEffect(() => {
+        setSelection(0)
+    }, [])
+
     const handleChange = (event: SelectChangeEvent) => {
         const selection = event.target.value as unknown as number
         setSelection(selection);
@@ -42,7 +47,6 @@ export default function SuddecoDropDown(props) {
     const setSelectionName = (name) => {
         selectionName.current = name;
     }
-
     return (
         <Box>
             <FormControl style={{ width: '100%' }} size='small'>
