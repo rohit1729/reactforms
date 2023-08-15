@@ -44,70 +44,80 @@ interface LineItem {
 }
 
 interface MaterialSelected {
-    materialId: number
-    materialName: string
+    id: number
+    name: string
 }
 
 interface MaterialOption {
-    materialId: number,
-    materialName: string
+    id: number,
+    name: string
 }
 
 interface SpecificationOption {
-    specificationId: number,
-    specificationName: string
+    id: number,
+    name: string
 }
 
 
 export default function CustomizedTables() {
-    const [materials, setMaterials] = React.useState(['steel beam', 'glass', 'concrete']);
+    const [materials, setMaterials] = React.useState<MaterialOption[]>([]);
     const [rowCount, setRowCount] = React.useState(1);
     const [lineItems, setLineItems ] = React.useState<LineItem[]>([]);
     const [materialSelected, setMaterialSelected] = React.useState<MaterialSelected>({
-        materialId: 0,
-        materialName: ''
-      });
-    const specificationStore = React.useRef({})
+        id: 0,
+        name: ''
+    });
+    const specificationStore = React.useState({})
 
     const fetchMaterialData = () => {
         try {
             fetch('https://jsonplaceholder.typicode.com/posts?_limit=10')
             .then(response => response.json())
-            .then((posts) => {
+            .then((materials) => {
                 console.log("materials response");
-                let names = [];
-                posts.forEach(post => {
-                    names.push(post['title']);
+                let materialOptions: MaterialOption[] = [];
+                materials.forEach(material => {
+                    let materialOption = {} as MaterialOption
+                    materialOption.id = material['id']
+                    materialOption.name = material['title']
+                    materialOptions.push(materialOption)
                 });
-                setMaterials(names);
+                setMaterials(materialOptions);
             })
             .catch(error => console.error(error))
         } catch (error) {
-          console.error('Error fetching data:', error);
+          console.error('Error fetching materials data:', error);
         }
     };
 
     const fetchSpecificationData = (materialId: number) => {
+        let specificationOptions = [];
         try {
             fetch('https://jsonplaceholder.typicode.com/posts?_limit=10')
             .then(response => response.json())
-            .then((posts) => {
+            .then((specifications) => {
                 console.log("specifications response");
-                let names = [];
-                posts.forEach(post => {
-                    names.push(post['title']);
+                specifications.forEach(specification => {
+                    let specificationOption = {} as SpecificationOption
+                    specificationOption.name = specification['title']
+                    specificationOption.id = specification['id']
+                    specificationOptions.push(specificationOption)
                 });
             })
             .catch(error => console.error(error))
         } catch (error) {
-          console.error('Error fetching data:', error);
+          console.error('Error fetching specification data:', error);
         }
+        return specificationOptions
     };
 
     const memoizedMaterialData = React.useMemo(() => fetchMaterialData, []);
     React.useEffect(() => {
         memoizedMaterialData();
-        if (specificationStore)
+        if (materialSelected.id && !specificationStore.current[materialSelected.id]){
+            const specificationOptions = fetchSpecificationData(materialSelected.id)
+            specificationStore.current[materialSelected.id] = specificationOptions
+        }
     }, [materialSelected])
 
     const rows = [];
@@ -116,23 +126,36 @@ export default function CustomizedTables() {
         setRowCount(rowCount + 1);
     };
 
-    const setSelection = (type, value, rowIndex) => {
+    const setSelection = (type, option, rowIndex) => {
+        console.log("inside selection")
         if (lineItems[rowIndex]){
+            console.log("inside found")
             if (type == 'material'){
-                lineItems[rowIndex].material = value;
+                lineItems[rowIndex].material = option['name'];
+                lineItems[rowIndex].materialId = option['id'];
             }
             if (type == 'specification'){
-                lineItems[rowIndex].specification = value;
+                lineItems[rowIndex].specification = option['name'];
+                lineItems[rowIndex].specificationId = option['id'];
             }
         }else{
+            console.log("inside not found")
             let lineItem = {} as LineItem;
             if (type == 'material'){
-                lineItem.material = value;
+                lineItem.material = option['name'];
+                lineItem.materialId = option['id'];
             }
             if (type == 'specification'){
-                lineItem.specification = value;
+                lineItem.specification = option['name'];
+                lineItem.specificationId = option['id'];
             }
             setLineItems([...lineItems, lineItem])
+        }
+        if (type == 'material'){
+            let materialSelected = {} as MaterialSelected
+            materialSelected.id = option['id']
+            materialSelected.name = option['name']
+            setMaterialSelected(materialSelected)
         }
     }
 
@@ -148,7 +171,7 @@ export default function CustomizedTables() {
                 <StyledTableRow key={"none_"+i} vertical-align='center'>
                     <StyledTableCell style={{width: "35%"}}>
                         <SuddecoDropDown dropdowns={materials} label="Material" updateRowCount={updateRowCount} type="material"
-                            setSelection={setSelection} rowIndex={i} selectedValue="None"/>
+                            setSelection={setSelection} rowIndex={i} selectedOption="None"/>
                     </StyledTableCell>
                     <StyledTableCell align="right" style={{width: "35%"}}></StyledTableCell>
                     <StyledTableCell align="center" style={{width: "20%"}} ></StyledTableCell>
@@ -156,15 +179,28 @@ export default function CustomizedTables() {
                 </StyledTableRow>
             )
         } else {
-            console.log("inside other"+i);
-            console.log(lineItems[i].material);
+            const materialSelectedOption = {} as MaterialSelected;
+            materialSelectedOption.id = lineItems[i].materialId
+            materialSelectedOption.name = lineItems[i].material
+
+            const specificationSelectedOption = {} as SpecificationOption;
+            specificationSelectedOption.id = lineItems[i].specificationId
+            specificationSelectedOption.name = lineItems[i].specification
+
+            let specificationDropdowns = []
+            if (specificationStore[materialSelectedOption.id]){
+                specificationDropdowns = specificationStore[materialSelectedOption.id]
+            }
             rows.push(
                 <StyledTableRow key={i} vertical-align='center'>
                     <StyledTableCell>
                         <SuddecoDropDown dropdowns={materials} label="Material" type="material" rowIndex={i} 
-                            setSelection={setSelection} selectedValue={lineItems[i].material}/>
+                            setSelection={setSelection} selectedOption={materialSelectedOption}/>
                     </StyledTableCell>
-                    <StyledTableCell align="right" style={{width: "35%"}}>Sample text</StyledTableCell>
+                    <StyledTableCell align="right" style={{width: "35%"}}>
+                        <SuddecoDropDown dropdowns={specificationDropdowns} label="Specifications" type="material" rowIndex={i} 
+                            setSelection={setSelection} selectedOption={specificationSelectedOption}/>
+                    </StyledTableCell>
                     <StyledTableCell align="center" style={{width: "20%"}}>
                         <FormControl sx={{ m: 1 }}>
                             <InputLabel htmlFor="outlined-adornment-amount">Price</InputLabel>

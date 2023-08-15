@@ -6,18 +6,20 @@ import FormControl from '@mui/material/FormControl';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 
 export default function SuddecoDropDown(props) {
-    const [material, setMaterial] = React.useState('');
+    const [selection, setSelection] = React.useState(0);
     const [used, setUsed] = React.useState(false);
-
-    console.log("inside render of dropdown")
-    console.log(material)
-
+    const selectionName = React.useRef('')
+    console.log("the dropdowns for: "+props.type)
+    console.log(props.dropdowns)
     const handleChange = (event: SelectChangeEvent) => {
-        const selection = event.target.value as string
-        setMaterial(selection);
+        const selection = event.target.value as unknown as number
+        setSelection(selection);
 
         if (props.setSelection){
-            props.setSelection(props.type, selection, props.rowIndex);
+            const selectedOption = {}
+            selectedOption['id'] = selection
+            selectedOption['name'] = selectionName.current
+            props.setSelection(props.type, selectedOption, props.rowIndex);
         }
 
         // first time selection adds a row again at bottom
@@ -28,13 +30,17 @@ export default function SuddecoDropDown(props) {
     }
 
     const getSelection = () => {
-        if (material){
-            return material
+        if (selection){
+            return selection
         }
-        if (props.selectedValue){
-            return props.selectedValue;
+        if (props.selectedOption){
+            return props.selectedOption['id'];
         }
-        return material;
+        return selection;
+    }
+
+    const setSelectionName = (name) => {
+        selectionName.current = name;
     }
 
     return (
@@ -49,7 +55,7 @@ export default function SuddecoDropDown(props) {
                     onChange={handleChange}
                 >
                      {props.dropdowns.map((item) => (
-                        <MenuItem value={item}>{item}</MenuItem>
+                        <MenuItem value={item['id']} onClick={(e) => {setSelectionName(item['name'])}}>{item['name']}</MenuItem>
                     ))}
                 </Select>
             </FormControl>
