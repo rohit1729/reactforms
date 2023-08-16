@@ -226,7 +226,7 @@ export default function CustomizedTables() {
                     <TableRow>
                         <StyledTableCell align='center'>Material</StyledTableCell>
                         <StyledTableCell align="center">Specification</StyledTableCell>
-                        <StyledTableCell align="center">Price&nbsp;&euro;</StyledTableCell>
+                        <StyledTableCell align="center">Quantity</StyledTableCell>
                         <StyledTableCell align="right"></StyledTableCell>
                     </TableRow>
                 </TableHead>

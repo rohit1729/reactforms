@@ -2,9 +2,9 @@ const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 module.exports = {
     entry: {
-        seller: './src/index.tsx',
-        admin: './src/index.tsx',
-        contact: './src/index.tsx'
+        seller: './src/seller.tsx',
+        admin: './src/admin.tsx',
+        customer: './src/customer.tsx'
     },
     module: {
         rules: [
@@ -29,14 +29,17 @@ module.exports = {
         new HtmlWebpackPlugin({
             chunks: ['seller'],
             filename: 'seller.html',
+            template: 'index.html'
         }),
         new HtmlWebpackPlugin({
             chunks: ['admin'],
             filename: 'admin.html',
+            template: 'index.html'
         }),
         new HtmlWebpackPlugin({
-            chunks: ['contact'],
-            filename: 'contact.html',
+            chunks: ['customer'],
+            filename: 'customer.html',
+            template: 'index.html'
         }),
     ]
 };

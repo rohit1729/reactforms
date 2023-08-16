@@ -11,6 +11,7 @@ export default function SuddecoDropDown(props) {
     const [selection, setSelection] = React.useState(0);
     const [used, setUsed] = React.useState(false);
     const selectionName = React.useRef('')
+    const selectionCategoryId = React.useRef(0)
 
     React.useEffect(() => {
         setSelection(0)
@@ -24,6 +25,7 @@ export default function SuddecoDropDown(props) {
             const selectedOption = {}
             selectedOption['id'] = selection
             selectedOption['name'] = selectionName.current
+            selectedOption['categoryId'] = selectionCategoryId.current
             props.setSelection(props.type, selectedOption, props.rowIndex);
         }
 
@@ -44,9 +46,11 @@ export default function SuddecoDropDown(props) {
         return selection;
     }
 
-    const setSelectionName = (name) => {
+    const setSelectionNameAndCategory = (name, categoryId) => {
         selectionName.current = name;
+        selectionCategoryId.current = categoryId
     }
+
     return (
         <Box>
             <FormControl style={{ width: '100%' }} size='small'>
@@ -59,7 +63,7 @@ export default function SuddecoDropDown(props) {
                     onChange={handleChange}
                 >
                      {props.dropdowns.map((item) => (
-                        <MenuItem value={item['id']} onClick={(e) => {setSelectionName(item['name'])}}>{item['name']}</MenuItem>
+                        <MenuItem value={item['id']} onClick={(e) => {setSelectionNameAndCategory(item['name'], item['categoryId'])}}>{item['name']}</MenuItem>
                     ))}
                 </Select>
             </FormControl>
