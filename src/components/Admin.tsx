@@ -14,6 +14,8 @@ import Paper from '@mui/material/Paper';
 import SuddecoDropDown from './SuddecoDropDown';
 import IconButton from '@mui/material/IconButton';
 import DeleteIcon from '@mui/icons-material/Delete';
+import BottomNavigation from '@mui/material/BottomNavigation';
+import { Alert, Button, Snackbar } from '@mui/material';
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
     [`&.${tableCellClasses.head}`]: {
@@ -36,26 +38,39 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
 }));
 
 interface LineItem {
-    material: string;
-    materialId: number;
-    specification: string;
-    specificationId: number;
-    price: number;
+    material: string
+    materialId: number
+    specification: string
+    specificationId: number
+    categoryId: number
+    margin: number
+    unit: string
 }
 
 interface MaterialSelected {
     id: number
+    categoryId: number
     name: string
+}
+
+interface SpecificationSelected {
+    id: number
+    categoryId: number
+    name: string
+    unit: string
 }
 
 interface MaterialOption {
     id: number,
+    categoryId: number,
     name: string
 }
 
 interface SpecificationOption {
     id: number,
-    name: string
+    categoryId: number,
+    name: string,
+    unit: string
 }
 
 
@@ -65,20 +80,29 @@ export default function CustomizedTables() {
     const [specificationStore, setSpecificationStore] = React.useState(new Map())
     const [materialSelected, setMaterialSelected] = React.useState<MaterialSelected>({
         id: 0,
+        categoryId: 0,
         name: ''
     });
+    const [specificationSelected, setSpecificationSelected] = React.useState<SpecificationSelected>({
+        id: 0,
+        categoryId: 0,
+        name: '',
+        unit: ''
+    });
+    const [snackState, setSnackState] = React.useState(false);
     const lineItems = React.useRef<LineItem[]>([]);
 
     const fetchMaterialData = () => {
         try {
-            fetch('https://jsonplaceholder.typicode.com/posts?_limit=10')
+            fetch('http://localhost:8080/materials')
             .then(response => response.json())
             .then((materials) => {
                 let materialOptions: MaterialOption[] = [];
                 materials.forEach(material => {
                     let materialOption = {} as MaterialOption
                     materialOption.id = material['id']
-                    materialOption.name = material['title']
+                    materialOption.name = material['name']
+                    materialOption.categoryId = material['categoryId']
                     materialOptions.push(materialOption)
                 });
                 setMaterials(materialOptions);
@@ -89,21 +113,27 @@ export default function CustomizedTables() {
         }
     };
 
-    const fetchSpecificationData = (materialId: number) => {
+    const fetchSpecificationData = (materialCategoryId: number) => {
         try {
             let specificationOptions = [];
-            fetch('https://jsonplaceholder.typicode.com/posts?_limit=10')
+            const url = 'http://localhost:8080/specifications/'+materialCategoryId
+            fetch(url)
             .then(response => response.json())
             .then((specifications) => {
                 console.log("specifications response");
+                console.log(specifications)
                 specifications.forEach(specification => {
                     let specificationOption = {} as SpecificationOption
-                    specificationOption.name = specification['title']
+                    specificationOption.name = specification['name']
                     specificationOption.id = specification['id']
+                    specificationOption.categoryId = specification['categoryId']
+                    specificationOption.unit = specification['unit']
                     specificationOptions.push(specificationOption)
                 });
                 const newSpecificationStore = { ...specificationStore };
-                newSpecificationStore[materialId] = specificationOptions
+                newSpecificationStore[materialCategoryId] = specificationOptions
+                console.log("setting")
+                console.log(newSpecificationStore)
                 setSpecificationStore(newSpecificationStore)
             })
             .catch(error => console.error(error))
@@ -115,10 +145,12 @@ export default function CustomizedTables() {
     const memoizedMaterialData = React.useMemo(() => fetchMaterialData, []);
     React.useEffect(() => {
         memoizedMaterialData();
-        if (materialSelected.id && !specificationStore[materialSelected.id]){
-            fetchSpecificationData(materialSelected.id)
+        if (materialSelected.categoryId && !specificationStore[materialSelected.categoryId]){
+            fetchSpecificationData(materialSelected.categoryId)
         }
-    }, [materialSelected, rowCount])
+        console.log("inside effect")
+        console.log(specificationSelected)
+    }, [materialSelected, rowCount, specificationSelected])
 
     const rows = [];
 
@@ -126,26 +158,41 @@ export default function CustomizedTables() {
         setRowCount(rowCount + 1);
     };
 
+    const setMarginForLineItem = (index: number, margin: number) => {
+        console.log("set margin called: "+margin)
+        lineItems.current[index].margin = margin
+    }
+
+    const getMarginForLineItem = (index: number) => {
+        if (lineItems.current[index].margin){
+            return lineItems.current[index].margin
+        }
+    }
+
     const setSelection = (type, option, rowIndex) => {
         // console.log("inside selection")
         if (lineItems.current[rowIndex]){
             if (type == 'material'){
                 lineItems.current[rowIndex].material = option['name'];
                 lineItems.current[rowIndex].materialId = option['id'];
+                lineItems.current[rowIndex].categoryId = option['categoryId']
             }
             if (type == 'specification'){
                 lineItems.current[rowIndex].specification = option['name'];
                 lineItems.current[rowIndex].specificationId = option['id'];
+                lineItems.current[rowIndex].unit = option['unit']
             }
         }else{
             let lineItem = {} as LineItem;
             if (type == 'material'){
                 lineItem.material = option['name'];
                 lineItem.materialId = option['id'];
+                lineItem.categoryId = option['categoryId']
             }
             if (type == 'specification'){
                 lineItem.specification = option['name'];
                 lineItem.specificationId = option['id'];
+                lineItem.unit = option['unit']
             }
             lineItems.current.push(lineItem)
         }
@@ -153,7 +200,16 @@ export default function CustomizedTables() {
             let materialSelected = {} as MaterialSelected
             materialSelected.id = option['id']
             materialSelected.name = option['name']
+            materialSelected.categoryId = option['categoryId']
             setMaterialSelected(materialSelected)
+        }
+        if (type == 'specification'){
+            let specficationSelected = {} as SpecificationSelected
+            specficationSelected.id = option['id']
+            specficationSelected.name = option['name']
+            specficationSelected.categoryId = option['categoryId']
+            specficationSelected.unit = option['unit']
+            setSpecificationSelected(specficationSelected)
         }
     }
 
@@ -161,6 +217,42 @@ export default function CustomizedTables() {
         const updatedLineItems = lineItems.current.filter((_, index) => index !== rowIndex);
         lineItems.current = updatedLineItems
         setRowCount(rowCount-1);
+    }
+
+    const closeSnackBar = () => {
+        setSnackState(false)
+    }
+
+    const getButtonState = () => {
+        return snackState
+    }
+
+    const submitMargins = () => {
+        let requestBody = []
+        for (let i = 0; i < lineItems.current.length; ++i){
+            let marginRequest = {}
+            const lineItem = lineItems.current[i]
+            marginRequest['materialId'] = lineItem.materialId
+            marginRequest['specificationId'] = lineItem.specificationId
+            marginRequest['margin'] = lineItem.margin
+            requestBody.push(marginRequest)
+        }
+        var myJsonString = JSON.stringify(requestBody);
+        console.log("the request body")
+        console.log(myJsonString)
+        fetch('http://localhost:8080/pricings/margin', {
+            method: 'POST',
+            body: myJsonString,
+            headers: {
+              'Content-type': 'application/json; charset=UTF-8',
+            },
+            })
+             .then((response) => {
+                setSnackState(true)
+             })
+             .catch((err) => {
+                console.log(err.message);
+        });
     }
 
     for (let i = 0; i < rowCount; ++i) {
@@ -180,14 +272,16 @@ export default function CustomizedTables() {
             const materialSelectedOption = {} as MaterialSelected;
             materialSelectedOption.id = lineItems.current[i].materialId
             materialSelectedOption.name = lineItems.current[i].material
+            materialSelectedOption.categoryId = lineItems.current[i].categoryId
 
             const specificationSelectedOption = {} as SpecificationOption;
             specificationSelectedOption.id = lineItems.current[i].specificationId
             specificationSelectedOption.name = lineItems.current[i].specification
-
+            specificationSelectedOption.categoryId = lineItems.current[i].categoryId
+            specificationSelectedOption.unit = lineItems.current[i].unit
             let specificationDropdowns = []
-            if (specificationStore[materialSelectedOption.id]){
-                specificationDropdowns = specificationStore[materialSelectedOption.id]
+            if (specificationStore[materialSelectedOption.categoryId]){
+                specificationDropdowns = specificationStore[materialSelectedOption.categoryId]
             }
             rows.push(
                 <StyledTableRow key={materialSelectedOption.id+'_'+specificationSelectedOption.id+'_'+i} vertical-align='center'>
@@ -201,11 +295,15 @@ export default function CustomizedTables() {
                     </StyledTableCell>
                     <StyledTableCell align="center" style={{width: "20%"}}>
                         <FormControl sx={{ m: 1 }}>
-                            <InputLabel htmlFor="outlined-adornment-amount">Price</InputLabel>
-                            <OutlinedInput
+                            <InputLabel htmlFor="outlined-adornment-amount">Margin</InputLabel>
+                            <OutlinedInput onChange={(e) => {
+                                const value = e.target.value as unknown as number
+                                setMarginForLineItem(i, value)
+                            }}
+                                defaultValue={getMarginForLineItem(i)}
                                 size='small'
                                 id="outlined-adornment-amount"
-                                startAdornment={<InputAdornment position="start">&euro;</InputAdornment>}
+                                startAdornment={<InputAdornment position="start">%</InputAdornment>}
                                 label="Amount"
                             />
                         </FormControl>
@@ -220,20 +318,35 @@ export default function CustomizedTables() {
         }
     }
     return (
-        <TableContainer component={Paper}>
-            <Table sx={{ minWidth: 700 }} style={{tableLayout: 'fixed'}} aria-label="customized table">
-                <TableHead>
-                    <TableRow>
-                        <StyledTableCell align='center'>Material</StyledTableCell>
-                        <StyledTableCell align="center">Specification</StyledTableCell>
-                        <StyledTableCell align="center">Percent Margin</StyledTableCell>
-                        <StyledTableCell align="right"></StyledTableCell>
-                    </TableRow>
-                </TableHead>
-                <TableBody>
-                    {rows}
-                </TableBody>
-            </Table>
-        </TableContainer>
+        <div>
+            <TableContainer component={Paper}>
+                <Table sx={{ minWidth: 700 }} style={{tableLayout: 'fixed'}} aria-label="customized table">
+                    <TableHead>
+                        <TableRow>
+                            <StyledTableCell align='center'>Material</StyledTableCell>
+                            <StyledTableCell align="center">Specification</StyledTableCell>
+                            <StyledTableCell align="center">Percent margin</StyledTableCell>
+                            <StyledTableCell align="right"></StyledTableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {rows}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+            <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0 }} 
+                style={{display: 'grid', paddingTop:'12px', paddingBottom: '12px', zIndex:10}} elevation={3}>
+                    <Button disabled={getButtonState()} style={{margin: 'auto'}} variant="contained" onClick={submitMargins}>Submit</Button>
+            </Paper>
+            <Snackbar
+                open={snackState}
+                onClose={closeSnackBar}
+                autoHideDuration={2000}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert elevation={20} severity="success">Margin data updated!</Alert>
+            </Snackbar>
+        </div>
+
     );
 }
