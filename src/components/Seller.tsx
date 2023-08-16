@@ -14,6 +14,8 @@ import Paper from '@mui/material/Paper';
 import SuddecoDropDown from './SuddecoDropDown';
 import IconButton from '@mui/material/IconButton';
 import DeleteIcon from '@mui/icons-material/Delete';
+import BottomNavigation from '@mui/material/BottomNavigation';
+import { Alert, Button, Snackbar } from '@mui/material';
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
     [`&.${tableCellClasses.head}`]: {
@@ -36,18 +38,26 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
 }));
 
 interface LineItem {
-    material: string;
-    materialId: number;
-    specification: string;
-    specificationId: number;
-    categoryId: number;
-    price: number;
+    material: string
+    materialId: number
+    specification: string
+    specificationId: number
+    categoryId: number
+    price: number
+    unit: string
 }
 
 interface MaterialSelected {
     id: number
     categoryId: number
     name: string
+}
+
+interface SpecificationSelected {
+    id: number
+    categoryId: number
+    name: string
+    unit: string
 }
 
 interface MaterialOption {
@@ -60,6 +70,7 @@ interface SpecificationOption {
     id: number,
     categoryId: number,
     name: string,
+    unit: string
 }
 
 
@@ -72,6 +83,13 @@ export default function CustomizedTables() {
         categoryId: 0,
         name: ''
     });
+    const [specificationSelected, setSpecificationSelected] = React.useState<SpecificationSelected>({
+        id: 0,
+        categoryId: 0,
+        name: '',
+        unit: ''
+    });
+    const [snackState, setSnackState] = React.useState(false);
     const lineItems = React.useRef<LineItem[]>([]);
 
     const fetchMaterialData = () => {
@@ -109,6 +127,7 @@ export default function CustomizedTables() {
                     specificationOption.name = specification['name']
                     specificationOption.id = specification['id']
                     specificationOption.categoryId = specification['categoryId']
+                    specificationOption.unit = specification['unit']
                     specificationOptions.push(specificationOption)
                 });
                 const newSpecificationStore = { ...specificationStore };
@@ -129,13 +148,34 @@ export default function CustomizedTables() {
         if (materialSelected.categoryId && !specificationStore[materialSelected.categoryId]){
             fetchSpecificationData(materialSelected.categoryId)
         }
-    }, [materialSelected, rowCount])
+        console.log("inside effect")
+        console.log(specificationSelected)
+    }, [materialSelected, rowCount, specificationSelected])
 
     const rows = [];
 
     const updateRowCount = () => {
         setRowCount(rowCount + 1);
     };
+
+    const setPriceForLineItem = (index: number, price: number) => {
+        console.log("set price called: "+price)
+        lineItems.current[index].price = price
+    }
+
+    const getPriceForLineItem = (index: number) => {
+        if (lineItems.current[index].price){
+            return lineItems.current[index].price
+        }
+    }
+
+    const getPriceLabel = (index: number) => {
+        const unit = lineItems.current[index].unit
+        if (unit){
+            return "Price/"+unit
+        }
+        return "Price"
+    }
 
     const setSelection = (type, option, rowIndex) => {
         // console.log("inside selection")
@@ -148,6 +188,7 @@ export default function CustomizedTables() {
             if (type == 'specification'){
                 lineItems.current[rowIndex].specification = option['name'];
                 lineItems.current[rowIndex].specificationId = option['id'];
+                lineItems.current[rowIndex].unit = option['unit']
             }
         }else{
             let lineItem = {} as LineItem;
@@ -159,6 +200,7 @@ export default function CustomizedTables() {
             if (type == 'specification'){
                 lineItem.specification = option['name'];
                 lineItem.specificationId = option['id'];
+                lineItem.unit = option['unit']
             }
             lineItems.current.push(lineItem)
         }
@@ -169,12 +211,56 @@ export default function CustomizedTables() {
             materialSelected.categoryId = option['categoryId']
             setMaterialSelected(materialSelected)
         }
+        if (type == 'specification'){
+            let specficationSelected = {} as SpecificationSelected
+            specficationSelected.id = option['id']
+            specficationSelected.name = option['name']
+            specficationSelected.categoryId = option['categoryId']
+            specficationSelected.unit = option['unit']
+            setSpecificationSelected(specficationSelected)
+        }
     }
 
     const removeRow = (rowIndex) => {
         const updatedLineItems = lineItems.current.filter((_, index) => index !== rowIndex);
         lineItems.current = updatedLineItems
         setRowCount(rowCount-1);
+    }
+
+    const closeSnackBar = () => {
+        setSnackState(false)
+    }
+
+    const getButtonState = () => {
+        return snackState
+    }
+
+    const submitPrices = () => {
+        let requestBody = []
+        for (let i = 0; i < lineItems.current.length; ++i){
+            let priceRequest = {}
+            const lineItem = lineItems.current[i]
+            priceRequest['materialId'] = lineItem.materialId
+            priceRequest['specificationId'] = lineItem.specificationId
+            priceRequest['price'] = lineItem.price
+            requestBody.push(priceRequest)
+        }
+        var myJsonString = JSON.stringify(requestBody);
+        console.log("the request body")
+        console.log(myJsonString)
+        fetch('http://localhost:8080/pricings', {
+            method: 'POST',
+            body: myJsonString,
+            headers: {
+              'Content-type': 'application/json; charset=UTF-8',
+            },
+            })
+             .then((response) => {
+                setSnackState(true)
+             })
+             .catch((err) => {
+                console.log(err.message);
+        });
     }
 
     for (let i = 0; i < rowCount; ++i) {
@@ -200,6 +286,7 @@ export default function CustomizedTables() {
             specificationSelectedOption.id = lineItems.current[i].specificationId
             specificationSelectedOption.name = lineItems.current[i].specification
             specificationSelectedOption.categoryId = lineItems.current[i].categoryId
+            specificationSelectedOption.unit = lineItems.current[i].unit
             let specificationDropdowns = []
             if (specificationStore[materialSelectedOption.categoryId]){
                 specificationDropdowns = specificationStore[materialSelectedOption.categoryId]
@@ -216,8 +303,12 @@ export default function CustomizedTables() {
                     </StyledTableCell>
                     <StyledTableCell align="center" style={{width: "20%"}}>
                         <FormControl sx={{ m: 1 }}>
-                            <InputLabel htmlFor="outlined-adornment-amount">Price</InputLabel>
-                            <OutlinedInput
+                            <InputLabel htmlFor="outlined-adornment-amount">{getPriceLabel(i)}</InputLabel>
+                            <OutlinedInput onChange={(e) => {
+                                const value = e.target.value as unknown as number
+                                setPriceForLineItem(i, value)
+                            }}
+                                defaultValue={getPriceForLineItem(i)}
                                 size='small'
                                 id="outlined-adornment-amount"
                                 startAdornment={<InputAdornment position="start">&euro;</InputAdornment>}
@@ -235,20 +326,35 @@ export default function CustomizedTables() {
         }
     }
     return (
-        <TableContainer component={Paper}>
-            <Table sx={{ minWidth: 700 }} style={{tableLayout: 'fixed'}} aria-label="customized table">
-                <TableHead>
-                    <TableRow>
-                        <StyledTableCell align='center'>Material</StyledTableCell>
-                        <StyledTableCell align="center">Specification</StyledTableCell>
-                        <StyledTableCell align="center">Price&nbsp;&euro;</StyledTableCell>
-                        <StyledTableCell align="right"></StyledTableCell>
-                    </TableRow>
-                </TableHead>
-                <TableBody>
-                    {rows}
-                </TableBody>
-            </Table>
-        </TableContainer>
+        <div>
+            <TableContainer component={Paper}>
+                <Table sx={{ minWidth: 700 }} style={{tableLayout: 'fixed'}} aria-label="customized table">
+                    <TableHead>
+                        <TableRow>
+                            <StyledTableCell align='center'>Material</StyledTableCell>
+                            <StyledTableCell align="center">Specification</StyledTableCell>
+                            <StyledTableCell align="center">Price&nbsp;&euro;</StyledTableCell>
+                            <StyledTableCell align="right"></StyledTableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {rows}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+            <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0 }} 
+                style={{display: 'grid', paddingTop:'12px', paddingBottom: '12px', zIndex:10}} elevation={3}>
+                    <Button disabled={getButtonState()} style={{margin: 'auto'}} variant="contained" onClick={submitPrices}>Submit</Button>
+            </Paper>
+            <Snackbar
+                open={snackState}
+                onClose={closeSnackBar}
+                autoHideDuration={2000}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert elevation={20} severity="success">Price data updated!</Alert>
+            </Snackbar>
+        </div>
+
     );
 }
