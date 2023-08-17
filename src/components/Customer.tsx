@@ -226,7 +226,7 @@ export default function CustomizedTables() {
     }
 
     const getPriceDisplayText = (index: number) => {
-        if (lineItems.current[index].unit){
+        if (prices[index] && lineItems.current[index].unit){
             return prices[index]+"/"+lineItems.current[index].unit
         }
         return prices[index]
