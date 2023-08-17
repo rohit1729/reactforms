@@ -95,6 +95,7 @@ export default function CustomizedTables() {
     const [amounts, setAmounts] = React.useState([])
     const [snackState, setSnackState] = React.useState(false);
     const lineItems = React.useRef<LineItem[]>([]);
+    const currentIndex = React.useRef(0);
 
     const fetchMaterialData = () => {
         try {
@@ -124,8 +125,6 @@ export default function CustomizedTables() {
             fetch(url)
             .then(response => response.json())
             .then((specifications) => {
-                console.log("specifications response");
-                console.log(specifications)
                 specifications.forEach(specification => {
                     let specificationOption = {} as SpecificationOption
                     specificationOption.name = specification['name']
@@ -136,8 +135,6 @@ export default function CustomizedTables() {
                 });
                 const newSpecificationStore = { ...specificationStore };
                 newSpecificationStore[materialCategoryId] = specificationOptions
-                console.log("setting")
-                console.log(newSpecificationStore)
                 setSpecificationStore(newSpecificationStore)
             })
             .catch(error => console.error(error))
@@ -146,30 +143,55 @@ export default function CustomizedTables() {
         }
     };
 
-    const fetchPrice = (materialId: number, specificationId: number) => {
+    const updatePrices = (value: number, index: number) => {
+        console.log("inside price udpate: "+value)
+        let newPrices = [ ...prices]
+        if (index >= newPrices.length){
+            newPrices.push(value)
+        }else{
+            newPrices[index] = value
+        }
+        setPrices(newPrices)
+    }
+
+    const updateAmounts = (price: number, index: number) => {
+        let newAmounts = [ ...amounts]
+        let amount = undefined as number
+        if (price){
+            amount = price * lineItems.current[index].quantity
+        }
+        if (index >= amounts.length){
+            newAmounts.push(amount)
+        }else{
+            newAmounts[index] = amount
+        }
+        setAmounts(newAmounts)
+    }
+
+    const fetchPrice = () => {
         try {
-            let specificationOptions = [];
-            const url = 'http://localhost:8080/pricings/final?materialId='+materialId+"specificationId="+specificationId
-            fetch(url)
-            .then(response => response.json())
-            .then((price) => {
-                console.log("price response");
-                console.log(price)
-                specifications.forEach(specification => {
-                    let specificationOption = {} as SpecificationOption
-                    specificationOption.name = specification['name']
-                    specificationOption.id = specification['id']
-                    specificationOption.categoryId = specification['categoryId']
-                    specificationOption.unit = specification['unit']
-                    specificationOptions.push(specificationOption)
-                });
-                const newSpecificationStore = { ...specificationStore };
-                newSpecificationStore[materialCategoryId] = specificationOptions
-                console.log("setting")
-                console.log(newSpecificationStore)
-                setSpecificationStore(newSpecificationStore)
-            })
-            .catch(error => console.error(error))
+            const index = currentIndex.current
+            if (lineItems.current[index]){
+                const materialId = lineItems.current[index].materialId
+                const specificationId = lineItems.current[index].specificationId
+                if (materialId && specificationId){
+                    const url = 'http://localhost:8080/pricings/final?materialId='+materialId+"&specificationId="+specificationId
+                    console.log("price fetch url:" +url)
+                    fetch(url)
+                    .then(response => response.json())
+                    .then((price) => {
+                        console.log("price response for index"+index);
+                        const value = price['price']
+                        console.log(value);
+                        updatePrices(value, index)
+                        updateAmounts(value, index)
+                    })
+                    .catch(error => console.error(error))
+                }else{
+                    updatePrices(undefined, index)
+                    updateAmounts(undefined, index)
+                }
+            }
         } catch (error) {
           console.error('Error fetching specification data:', error);
         }
@@ -182,7 +204,7 @@ export default function CustomizedTables() {
             fetchSpecificationData(materialSelected.categoryId)
         }
         console.log("inside effect")
-        console.log(specificationSelected)
+        fetchPrice()
     }, [materialSelected, rowCount, specificationSelected])
 
     const rows = [];
@@ -191,32 +213,39 @@ export default function CustomizedTables() {
         setRowCount(rowCount + 1);
     };
 
-    const setPriceForLineItem = (index: number, price: number) => {
-        console.log("set price called: "+price)
-        lineItems.current[index].price = price
+    const setQuantityForLineItem = (index: number, quantity: number) => {
+        lineItems.current[index].quantity = quantity
+        updateAmounts(prices[index], index)
     }
 
-    const getPriceForLineItem = (index: number) => {
-        if (lineItems.current[index].price){
-            return lineItems.current[index].price
+    const getQuantityForLineItem = (index: number) => {
+        if (lineItems.current[index].quantity){
+            return lineItems.current[index].quantity
         }
+        return 0
     }
 
-    const getPriceLabel = (index: number) => {
-        const unit = lineItems.current[index].unit
-        if (unit){
-            return "Price/"+unit
+    const getPriceDisplayText = (index: number) => {
+        if (lineItems.current[index].unit){
+            return prices[index]+"/"+lineItems.current[index].unit
         }
-        return "Price"
+        return prices[index]
+    }
+
+    const getAmountDisplayText = (index: number) => {
+        if (amounts[index]){
+            return "\u20AC "+amounts[index]
+        }
     }
 
     const setSelection = (type, option, rowIndex) => {
-        // console.log("inside selection")
+        currentIndex.current = rowIndex
         if (lineItems.current[rowIndex]){
             if (type == 'material'){
                 lineItems.current[rowIndex].material = option['name'];
                 lineItems.current[rowIndex].materialId = option['id'];
                 lineItems.current[rowIndex].categoryId = option['categoryId']
+                lineItems.current[rowIndex].specificationId = undefined
             }
             if (type == 'specification'){
                 lineItems.current[rowIndex].specification = option['name'];
@@ -225,10 +254,12 @@ export default function CustomizedTables() {
             }
         }else{
             let lineItem = {} as LineItem;
+            lineItem.quantity = 0
             if (type == 'material'){
                 lineItem.material = option['name'];
                 lineItem.materialId = option['id'];
                 lineItem.categoryId = option['categoryId']
+                lineItem.specificationId = undefined
             }
             if (type == 'specification'){
                 lineItem.specification = option['name'];
@@ -257,6 +288,15 @@ export default function CustomizedTables() {
     const removeRow = (rowIndex) => {
         const updatedLineItems = lineItems.current.filter((_, index) => index !== rowIndex);
         lineItems.current = updatedLineItems
+
+        const newPrices = [ ... prices]
+        const updatedPrices = newPrices.filter((_, index) => index !== rowIndex);
+        setPrices(updatedPrices)
+
+        const newAmounts = [ ... amounts]
+        const updatedAmounts = newAmounts.filter((_, index) => index !== rowIndex);
+        setAmounts(updatedAmounts)
+
         setRowCount(rowCount-1);
     }
 
@@ -296,6 +336,16 @@ export default function CustomizedTables() {
         });
     }
 
+    const getSumTotal = () => {
+        let total = 0;
+        for (let i = 0; i < amounts.length; ++i){
+            if (amounts[i]){
+                total += amounts[i]
+            }
+        }
+        return "\u20AC "+total
+    }
+
     for (let i = 0; i < rowCount; ++i) {
         if (i == rowCount - 1) {
             rows.push(
@@ -304,9 +354,10 @@ export default function CustomizedTables() {
                         <SuddecoDropDown dropdowns={materials} label="Material" updateRowCount={updateRowCount} type="material"
                             setSelection={setSelection} rowIndex={i} selectedOption="None"/>
                     </StyledTableCell>
-                    <StyledTableCell align="right" style={{width: "35%"}}></StyledTableCell>
+                    <StyledTableCell align="center" style={{width: "35%"}}></StyledTableCell>
                     <StyledTableCell align="center" style={{width: "10%"}} ></StyledTableCell>
-                    <StyledTableCell align="right" style={{width: "10%"}}></StyledTableCell>
+                    <StyledTableCell align="center" style={{width: "10%"}}></StyledTableCell>
+                    <StyledTableCell align="center" style={{width: "10%"}}></StyledTableCell>
                     <StyledTableCell align="right" style={{width: "10%"}}></StyledTableCell>
                 </StyledTableRow>
             )
@@ -321,10 +372,14 @@ export default function CustomizedTables() {
             specificationSelectedOption.name = lineItems.current[i].specification
             specificationSelectedOption.categoryId = lineItems.current[i].categoryId
             specificationSelectedOption.unit = lineItems.current[i].unit
+
             let specificationDropdowns = []
             if (specificationStore[materialSelectedOption.categoryId]){
                 specificationDropdowns = specificationStore[materialSelectedOption.categoryId]
             }
+
+            console.log("price to set:")
+            console.log(prices)
             rows.push(
                 <StyledTableRow key={materialSelectedOption.id+'_'+specificationSelectedOption.id+'_'+i} vertical-align='center'>
                     <StyledTableCell>
@@ -335,25 +390,30 @@ export default function CustomizedTables() {
                         <SuddecoDropDown key={"specification_"+i} dropdowns={specificationDropdowns} label="Specification" type="specification" rowIndex={i} 
                             setSelection={setSelection} selectedOption={specificationSelectedOption}/>
                     </StyledTableCell>
-                    <StyledTableCell align='center'>
-                        
+                    <StyledTableCell key={"price_"+i} align='center'>
+                        {getPriceDisplayText(i)}
                     </StyledTableCell>
                     <StyledTableCell align="center" style={{width: "20%"}}>
                         <FormControl sx={{ m: 1 }}>
                             <InputLabel htmlFor="outlined-adornment-amount">Quantity</InputLabel>
                             <OutlinedInput onChange={(e) => {
                                 const value = e.target.value as unknown as number
-                                setPriceForLineItem(i, value)
+                                setQuantityForLineItem(i, value)
                             }}
-                                defaultValue={0}
+                                defaultValue={getQuantityForLineItem(i)}
                                 size='small'
                                 id="outlined-adornment-amount"
                                 label="Amount"
                             />
                         </FormControl>
                     </StyledTableCell>
+                    <StyledTableCell align="center" style={{width: "10%"}}>
+                        {getAmountDisplayText(i)}
+                    </StyledTableCell>
                     <StyledTableCell align="right" style={{width: "10%"}}>
-                        
+                        <IconButton aria-label="delete" size="large" color="error" onClick={() => removeRow(i)}>
+                            <DeleteIcon/>
+                        </IconButton>
                     </StyledTableCell>
                 </StyledTableRow>
             )
@@ -369,7 +429,8 @@ export default function CustomizedTables() {
                             <StyledTableCell align="center">Specification</StyledTableCell>
                             <StyledTableCell align="center">Price&nbsp;&euro;</StyledTableCell>
                             <StyledTableCell align="center">Quantity</StyledTableCell>
-                            <StyledTableCell align="right">Amount&nbsp;&euro;</StyledTableCell>
+                            <StyledTableCell align="center">Amount&nbsp;&euro;</StyledTableCell>
+                            <StyledTableCell align="right"></StyledTableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -377,9 +438,22 @@ export default function CustomizedTables() {
                     </TableBody>
                 </Table>
             </TableContainer>
-            <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0 }} 
-                style={{display: 'grid', paddingTop:'12px', paddingBottom: '12px', zIndex:10}} elevation={3}>
-                    <Button disabled={getButtonState()} style={{margin: 'auto'}} variant="contained" onClick={submitPrices}>Submit</Button>
+            <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, boxShadow:'none'}} 
+                style={{paddingTop:'12px', paddingBottom: '12px', zIndex:10}} elevation={3}>
+                <TableContainer component={Paper}>
+                    <Table sx={{ minWidth: 700 }} style={{tableLayout: 'fixed'}} aria-label="customized table">
+                        <TableHead>
+                            <TableRow>
+                                <StyledTableCell style={{background: 'white'}} align='center'></StyledTableCell>
+                                <StyledTableCell style={{background: 'white'}} align="center"></StyledTableCell>
+                                <StyledTableCell style={{background: 'white'}} align="center"></StyledTableCell>
+                                <StyledTableCell style={{background: 'white'}} align="center"></StyledTableCell>
+                                <StyledTableCell style={{background: 'white', color: 'black'}} align="center">TOTAL: {getSumTotal()}</StyledTableCell>
+                                <StyledTableCell style={{background: 'white'}} align="right"></StyledTableCell>
+                            </TableRow>
+                        </TableHead>
+                    </Table>
+                </TableContainer>
             </Paper>
             <Snackbar
                 open={snackState}
